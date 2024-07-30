@@ -1,13 +1,28 @@
 import os
+from urllib.parse import quote_plus
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 
-if not os.getenv('DATABASE_URL'):
-    raise ValueError("No DATABASE_URL set for Flask application")
+def get_database_url():
+    raw_url = os.getenv('DATABASE_URL')
+    if not raw_url:
+        raise ValueError("No DATABASE_URL set for Flask application")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+    parts = raw_url.split('://')
+    if len(parts) != 2:
+        raise ValueError("Invalid DATABASE_URL format")
+
+    scheme, rest = parts
+    user_pass, host_db = rest.split('@', 1)
+    user, password = user_pass.split(':', 1)
+
+    encoded_password = quote_plus(password)
+
+    return f"{scheme}://{user}:{encoded_password}@{host_db}"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -56,5 +71,5 @@ def get_views():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    initialize_database()
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
