@@ -16,18 +16,19 @@ class ViewCount(db.Model):
     count = db.Column(db.Integer, nullable=False, default=0)
 
 def initialize_database():
-    try:
-        db.create_all()
-        if ViewCount.query.count() == 0:
-            initial_view = ViewCount(count=0)
-            db.session.add(initial_view)
-            db.session.commit()
-    except Exception as e:
-        print(f"Error initializing database: {str(e)}")
-        db.session.rollback()
+    with app.app_context():
+        try:
+            db.create_all()
+            if ViewCount.query.count() == 0:
+                initial_view = ViewCount(count=0)
+                db.session.add(initial_view)
+                db.session.commit()
+        except Exception as e:
+            print(f"Error initializing database: {str(e)}")
+            db.session.rollback()
 
-@app.before_first_request
-def before_first_request():
+@app.before_request
+def before_request():
     initialize_database()
 
 @app.after_request
@@ -55,4 +56,5 @@ def get_views():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    initialize_database()
     app.run(debug=True)
